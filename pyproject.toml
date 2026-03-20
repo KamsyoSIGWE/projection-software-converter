@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "projection-software-converter"
+description = "Windows desktop tool for converting projection software packages between supported formats"
+readme = "README.md"
+requires-python = ">=3.10"
+dynamic = ["version"]
+license = {text = "MIT"}
+authors = [
+  {name = "OpenAI Codex"}
+]
+dependencies = [
+  "PySide6>=6.8,<7",
+]
+
+[project.optional-dependencies]
+build = [
+  "PyInstaller>=6.16,<7",
+  "Pillow>=10.4,<11",
+]
+
+[project.scripts]
+projection-software-converter = "projection_software_converter.cli:main"
+projection-software-converter-cli = "projection_software_converter.cli:main"
+videosalm-to-freeshow = "videosalm_to_freeshow.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+projection_software_converter = ["resources/*.json"]
+
+[tool.setuptools.dynamic]
+version = {attr = "projection_software_converter.version.__version__"}

@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+out/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+assets/app.ico
+packaging/version_info.txt
+.videosalm_to_freeshow_build/
+projection-software-converter-copy/
+*.vpagd
