@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
   pull_request:
   release:
     types: [published]
@@ -45,7 +43,13 @@ jobs:
       - name: Resolve version
         id: version
         shell: bash
-        run: echo "value=$(python -c 'from pathlib import Path; import re; text=Path(\"src/projection_software_converter/version.py\").read_text(encoding=\"utf-8\"); print(re.search(r\"__version__\\s*=\\s*\\\"([^\\\"]+)\\\"\", text).group(1))')" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [[ "${GITHUB_REF_NAME}" == v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version=$(python -c "from pathlib import Path; import re; text=Path('src/projection_software_converter/version.py').read_text(encoding='utf-8'); print(re.search(r\"__version__\\s*=\\s*\\\"([^\\\"]+)\\\"\", text).group(1))")
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: |

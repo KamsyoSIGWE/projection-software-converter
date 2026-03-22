@@ -20,6 +20,27 @@ iscc .\installer\ProjectionSoftwareConverter.iss
 
 The generated installer shows the normal Windows install wizard with a file-copy progress bar.
 
+## Optional Code Signing In GitHub Actions
+
+The Windows release workflow can sign both the packaged app executable and the generated installer when these GitHub repository secrets are configured:
+
+- `WINDOWS_CODESIGN_PFX_BASE64`
+- `WINDOWS_CODESIGN_PFX_PASSWORD`
+
+`WINDOWS_CODESIGN_PFX_BASE64` should contain the base64-encoded bytes of your `.pfx` certificate file.
+
+You can generate that value in PowerShell with:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\certificate.pfx"))
+```
+
+You can also set this optional repository variable to override the timestamp service URL:
+
+- `WINDOWS_CODESIGN_TIMESTAMP_URL`
+
+If the signing secrets are not configured, the workflow still builds and publishes unsigned artifacts.
+
 ## Install Mode
 The installer uses Inno Setup's install mode selection so the user can choose between:
 - current user only

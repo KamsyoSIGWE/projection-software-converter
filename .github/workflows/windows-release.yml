@@ -2,9 +2,6 @@ name: windows-release
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - "v*"
   release:
     types: [published]
 
@@ -29,6 +26,37 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .[build]
 
+      - name: Prepare optional code signing
+        shell: pwsh
+        env:
+          SIGN_CERT_B64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
+          SIGN_CERT_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}
+          SIGN_TIMESTAMP_URL: ${{ vars.WINDOWS_CODESIGN_TIMESTAMP_URL }}
+        run: |
+          if (-not $env:SIGN_CERT_B64 -or -not $env:SIGN_CERT_PASSWORD) {
+            "CODESIGN_ENABLED=false" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            Write-Host "Code signing secrets are not configured; continuing with unsigned artifacts."
+            exit 0
+          }
+
+          $certPath = Join-Path $env:RUNNER_TEMP "projection-software-converter-codesign.pfx"
+          [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($env:SIGN_CERT_B64))
+
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+
+          if (-not $signtool) {
+            throw "signtool.exe was not found on the GitHub Actions runner."
+          }
+
+          $timestampUrl = if ($env:SIGN_TIMESTAMP_URL) { $env:SIGN_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
+
+          "CODESIGN_ENABLED=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CODESIGN_CERT_PATH=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CODESIGN_SIGNTOOL=$signtool" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CODESIGN_TIMESTAMP_URL=$timestampUrl" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Generate icon and version metadata
         shell: pwsh
         run: |
@@ -40,6 +68,20 @@ jobs:
         shell: pwsh
         run: pyinstaller .\projection-software-converter.spec --noconfirm
 
+      - name: Sign packaged app executable
+        shell: pwsh
+        env:
+          SIGN_CERT_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}
+        run: |
+          if ($env:CODESIGN_ENABLED -ne "true") {
+            Write-Host "Skipping app signing because code signing is not configured."
+            exit 0
+          }
+
+          $appExe = ".\dist\Projection Software Converter\ProjectionSoftwareConverter.exe"
+          & $env:CODESIGN_SIGNTOOL sign /fd SHA256 /td SHA256 /f $env:CODESIGN_CERT_PATH /p $env:SIGN_CERT_PASSWORD /tr $env:CODESIGN_TIMESTAMP_URL $appExe
+          & $env:CODESIGN_SIGNTOOL verify /pa $appExe
+
       - name: Install Inno Setup
         shell: pwsh
         run: choco install innosetup -y
@@ -50,6 +92,21 @@ jobs:
           $env:PYTHONPATH = "$PWD\src"
           $env:APP_VERSION = (python -c "from projection_software_converter.version import __version__; print(__version__)")
           iscc .\installer\ProjectionSoftwareConverter.iss
+
+      - name: Sign installer
+        shell: pwsh
+        env:
+          SIGN_CERT_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}
+        run: |
+          if ($env:CODESIGN_ENABLED -ne "true") {
+            Write-Host "Skipping installer signing because code signing is not configured."
+            exit 0
+          }
+
+          Get-ChildItem .\dist\installer\*.exe | ForEach-Object {
+            & $env:CODESIGN_SIGNTOOL sign /fd SHA256 /td SHA256 /f $env:CODESIGN_CERT_PATH /p $env:SIGN_CERT_PASSWORD /tr $env:CODESIGN_TIMESTAMP_URL $_.FullName
+            & $env:CODESIGN_SIGNTOOL verify /pa $_.FullName
+          }
 
       - name: Generate checksums
         shell: pwsh
@@ -75,3 +132,11 @@ jobs:
           files: |
             dist/installer/*.exe
             dist/installer/*.sha256
+
+      - name: Remove imported signing certificate
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:CODESIGN_CERT_PATH -and (Test-Path $env:CODESIGN_CERT_PATH)) {
+            Remove-Item $env:CODESIGN_CERT_PATH -Force
+          }
