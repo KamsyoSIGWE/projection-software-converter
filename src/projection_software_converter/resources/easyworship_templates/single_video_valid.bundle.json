@@ -1,0 +1,48 @@
+{
+  "source_version": "7.4.1.3",
+  "template_kind": "single_video",
+  "members": [
+    {
+      "name": "main.db",
+      "version_made_by": 20,
+      "version_needed": 20,
+      "flags": 2048,
+      "compression": 8,
+      "mtime": 37679,
+      "mdate": 23669,
+      "extra_length": 0,
+      "comment_length": 0,
+      "disk_number_start": 0,
+      "internal_attributes": 0,
+      "external_attributes": 32
+    },
+    {
+      "name": "media",
+      "version_made_by": 20,
+      "version_needed": 20,
+      "flags": 2048,
+      "compression": 8,
+      "mtime": 37679,
+      "mdate": 23669,
+      "extra_length": 0,
+      "comment_length": 0,
+      "disk_number_start": 0,
+      "internal_attributes": 0,
+      "external_attributes": 16
+    },
+    {
+      "name": "media\\cevsp.mp4",
+      "version_made_by": 20,
+      "version_needed": 20,
+      "flags": 2048,
+      "compression": 0,
+      "mtime": 44768,
+      "mdate": 22943,
+      "extra_length": 0,
+      "comment_length": 0,
+      "disk_number_start": 0,
+      "internal_attributes": 0,
+      "external_attributes": 32
+    }
+  ]
+}

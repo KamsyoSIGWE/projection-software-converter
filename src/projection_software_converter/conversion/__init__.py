@@ -1,6 +1,6 @@
 from .bootstrap import build_registry
 from .registry import ConversionRegistry, RegistryValidationError
-from .service import ConversionResult, ConverterService, default_output_path
+from .service import ConversionResult, ConverterService, default_output_path, default_output_path_in_dir
 
 __all__ = [
     "build_registry",
@@ -9,4 +9,5 @@ __all__ = [
     "ConversionResult",
     "ConverterService",
     "default_output_path",
+    "default_output_path_in_dir",
 ]

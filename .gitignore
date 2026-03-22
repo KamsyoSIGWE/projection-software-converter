@@ -13,5 +13,6 @@ htmlcov/
 assets/app.ico
 packaging/version_info.txt
 .videosalm_to_freeshow_build/
+.freeshow_to_easyworship_build/
 projection-software-converter-copy/
 *.vpagd

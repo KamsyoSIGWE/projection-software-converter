@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 from .version import __version__
@@ -29,4 +30,11 @@ class AppConfig:
     )
 
 
-DEFAULT_CONFIG = AppConfig()
+def _github_update_config_from_env() -> GitHubUpdateConfig:
+    return GitHubUpdateConfig(
+        owner=os.getenv("PSC_GITHUB_OWNER", "REPLACE_WITH_GITHUB_OWNER"),
+        repo=os.getenv("PSC_GITHUB_REPOSITORY", "REPLACE_WITH_GITHUB_REPOSITORY"),
+    )
+
+
+DEFAULT_CONFIG = AppConfig(github_updates=_github_update_config_from_env())

@@ -32,8 +32,13 @@ class ConverterService:
 
 
 def default_output_path(input_path: Path, target: str) -> Path:
+    return default_output_path_in_dir(input_path, target, input_path.parent)
+
+
+def default_output_path_in_dir(input_path: Path, target: str, output_dir: Path) -> Path:
     suffix_map = {
         "FreeShow": ".project",
         "VideoPsalm": ".vpagd",
+        "EasyWorship": ".ewsx",
     }
-    return input_path.with_suffix(suffix_map.get(target, input_path.suffix))
+    return output_dir / input_path.with_suffix(suffix_map.get(target, input_path.suffix)).name

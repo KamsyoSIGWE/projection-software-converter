@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
 import shutil
 import time
+import uuid
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +27,16 @@ class AgendaItem:
     flow_type: int | None = None
     auto_advance: int | None = None
     interval: int | None = None
+
+
+@dataclass
+class SongAgendaItem:
+    index: int
+    title: str
+    verses: list[str]
+    background_kind: str | None = None
+    background_original_path: str = ""
+    background_bundled_member: str = ""
 
 
 KEY_PATTERN = re.compile(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)')
@@ -190,6 +202,37 @@ def find_bundled_member(zf: zipfile.ZipFile, original_path: str) -> str | None:
     return None
 
 
+def _find_project_member_by_path(zf: zipfile.ZipFile, import_path: str) -> str | None:
+    basename = Path(str(import_path)).name.lower()
+    for name in zf.namelist():
+        if name.endswith("/"):
+            continue
+        if Path(name).name.lower() == basename:
+            return name
+    return None
+
+
+def _freeshow_text_lines(slide: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    for item in slide.get("items", []):
+        if not isinstance(item, dict):
+            continue
+        for line in item.get("lines", []):
+            if not isinstance(line, dict):
+                continue
+            text_parts: list[str] = []
+            for segment in line.get("text", []):
+                if not isinstance(segment, dict):
+                    continue
+                value = str(segment.get("value") or "")
+                if value:
+                    text_parts.append(value)
+            text = "".join(text_parts).strip()
+            if text:
+                lines.append(text)
+    return lines
+
+
 def extract_agenda_items(vpagd_path: str | Path) -> list[AgendaItem]:
     path = Path(vpagd_path)
     if not zipfile.is_zipfile(path):
@@ -332,6 +375,89 @@ def extract_project_media_items(project_path: str | Path) -> list[AgendaItem]:
     return sorted(items, key=lambda item: item.index)
 
 
+def extract_project_song_items(project_path: str | Path) -> list[SongAgendaItem]:
+    path = Path(project_path)
+    if not zipfile.is_zipfile(path):
+        raise ValueError(f"Not a valid ZIP-based .project file: {path}")
+
+    with zipfile.ZipFile(path) as zf:
+        if "data.json" not in zf.namelist():
+            raise ValueError(f"Missing data.json in project: {path}")
+        data = json.loads(zf.read("data.json").decode("utf-8"))
+        project = data.get("project", {})
+        project_shows = project.get("shows", []) if isinstance(project, dict) else []
+        named_shows = data.get("shows", {}) if isinstance(data.get("shows"), dict) else {}
+
+        songs: list[SongAgendaItem] = []
+        for fallback_index, entry in enumerate(project_shows):
+            if not isinstance(entry, dict) or entry.get("type") is not None:
+                continue
+            show_id = str(entry.get("id") or "").strip()
+            show = named_shows.get(show_id)
+            if not isinstance(show, dict):
+                continue
+
+            layouts = show.get("layouts", {})
+            active_layout = str(show.get("settings", {}).get("activeLayout") or "")
+            if not active_layout or active_layout not in layouts:
+                active_layout = next(iter(layouts), "")
+            if not active_layout:
+                continue
+
+            layout = layouts.get(active_layout) or {}
+            show_media = show.get("media", {}) if isinstance(show.get("media"), dict) else {}
+            slides_by_id = show.get("slides", {}) if isinstance(show.get("slides"), dict) else {}
+            verses: list[str] = []
+            background_kind: str | None = None
+            background_original_path = ""
+            background_bundled_member = ""
+
+            for layout_entry in layout.get("slides", []):
+                if not isinstance(layout_entry, dict):
+                    continue
+                slide_id = str(layout_entry.get("id") or "")
+                slide = slides_by_id.get(slide_id)
+                if not isinstance(slide, dict):
+                    continue
+
+                text_lines = _freeshow_text_lines(slide)
+                if text_lines:
+                    verses.append("\n".join(text_lines))
+
+                if background_bundled_member:
+                    continue
+                background_id = str(layout_entry.get("background") or "")
+                if not background_id or background_id not in show_media:
+                    continue
+                background_meta = show_media.get(background_id) or {}
+                candidate_kind = str(background_meta.get("type") or "").lower()
+                original_path = str(background_meta.get("path") or "").strip()
+                if candidate_kind not in {"image", "video"} or not original_path:
+                    continue
+                bundled_member = _find_project_member_by_path(zf, original_path)
+                if not bundled_member:
+                    continue
+                background_kind = candidate_kind
+                background_original_path = original_path
+                background_bundled_member = bundled_member
+
+            if not verses:
+                continue
+
+            index = int(entry.get("index", fallback_index)) if str(entry.get("index", "")).strip() else fallback_index
+            songs.append(
+                SongAgendaItem(
+                    index=index,
+                    title=str(show.get("name") or f"Song {len(songs) + 1}").strip() or f"Song {len(songs) + 1}",
+                    verses=verses,
+                    background_kind=background_kind,
+                    background_original_path=background_original_path,
+                    background_bundled_member=background_bundled_member,
+                )
+            )
+    return sorted(songs, key=lambda item: item.index)
+
+
 def python_to_relaxed_json(value: Any) -> str:
     compact = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
     return JSON_KEY_PATTERN.sub(r"\1:", compact)
@@ -349,6 +475,11 @@ def videosalm_packaged_member(original_path: str, packaged_name: str) -> str:
     return packaged_name
 
 
+def videosalm_song_background_member(kind: str, packaged_name: str) -> str:
+    folder = "Videos" if kind == "video" else "Images"
+    return f"{folder}/{packaged_name}"
+
+
 def videosalm_manifest_name(kind: str, counter: int) -> str:
     prefix = {
         "image": "Image",
@@ -363,22 +494,63 @@ def videosalm_manifest_name(kind: str, counter: int) -> str:
     return f"{prefix}_{counter}.json"
 
 
+def _videosalm_guid() -> str:
+    return base64.b64encode(uuid.uuid4().bytes).decode("ascii").rstrip("=")
+
+
+def _videosalm_song_payload(song: SongAgendaItem, background_reference: str | None) -> dict[str, Any]:
+    style: dict[str, Any] = {"Body": {"FontSize": 95}}
+    if background_reference:
+        if song.background_kind == "video":
+            style["Background"] = {"Video": background_reference, "IsLooping": 1}
+        elif song.background_kind == "image":
+            style["Background"] = {"Image": background_reference}
+    return {
+        "Guid": _videosalm_guid(),
+        "Verses": [{"Text": verse} for verse in song.verses],
+        "Style": style,
+        "Text": song.title,
+    }
+
+
+def _videosalm_songbook_payload(title: str) -> dict[str, Any]:
+    return {"Songs": [], "Guid": _videosalm_guid(), "Text": title}
+
+
+def _videosalm_agenda_properties(entry: AgendaItem | SongAgendaItem) -> dict[str, Any]:
+    if isinstance(entry, AgendaItem):
+        return {
+            "FlowType": entry.flow_type if entry.flow_type is not None else (0 if entry.kind in {"video", "audio"} else 2),
+            "AutoAdvance": entry.auto_advance if entry.auto_advance is not None else 0,
+            "Interval": entry.interval if entry.interval is not None else 5000,
+            "VerseOrderIndex": -1,
+        }
+    return {
+        "FlowType": 0,
+        "AutoAdvance": 0,
+        "Interval": 5000,
+        "VerseOrderIndex": -1,
+        "HiddenSlides": [],
+    }
+
+
 def convert_freeshow_to_videosalm(project_path: str | Path, output_vpagd_path: str | Path, also_json: str | Path | None = None) -> dict[str, Any]:
     source_path = Path(project_path)
     output_path = Path(output_vpagd_path)
-    items = extract_project_media_items(source_path)
-    agenda_payload = {
-        "Items": [
-            {
-                "FlowType": item.flow_type if item.flow_type is not None else (0 if item.kind in {"video", "audio"} else 2),
-                "AutoAdvance": item.auto_advance if item.auto_advance is not None else 0,
-                "Interval": item.interval if item.interval is not None else 5000,
-                "VerseOrderIndex": -1,
-            }
-            for item in items
-        ]
+    media_items = extract_project_media_items(source_path)
+    song_items = extract_project_song_items(source_path)
+    schedule_items: list[AgendaItem | SongAgendaItem] = sorted(
+        [*media_items, *song_items],
+        key=lambda item: item.index,
+    )
+    agenda_payload = {"Items": [_videosalm_agenda_properties(item) for item in schedule_items]}
+    debug_manifest = {
+        "project_name": source_path.stem,
+        "item_count": len(schedule_items),
+        "media_item_count": len(media_items),
+        "song_item_count": len(song_items),
+        "items": [item.__dict__ for item in schedule_items],
     }
-    debug_manifest = {"project_name": source_path.stem, "item_count": len(items), "items": [item.__dict__ for item in items]}
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(source_path) as zin, zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zout:
@@ -386,21 +558,44 @@ def convert_freeshow_to_videosalm(project_path: str | Path, output_vpagd_path: s
             zout.writestr(name, contents)
 
         kind_counters: dict[str, int] = {}
-        for item in items:
-            kind_index = kind_counters.get(item.kind, 0)
-            kind_counters[item.kind] = kind_index + 1
-            manifest_name = videosalm_manifest_name(item.kind, kind_index)
-            manifest_payload = {"FileName": item.original_path, "Text": item.title}
-            zout.writestr(manifest_name, python_to_relaxed_json(manifest_payload))
-
         written_media_members: set[str] = set()
-        for item in items:
-            target_member = videosalm_packaged_member(item.original_path, item.packaged_name)
-            if target_member in written_media_members:
+        used_background_names: set[str] = set()
+        written_song_backgrounds: dict[str, tuple[str, str]] = {}
+        song_counter = 0
+
+        for item in schedule_items:
+            if isinstance(item, AgendaItem):
+                kind_index = kind_counters.get(item.kind, 0)
+                kind_counters[item.kind] = kind_index + 1
+                manifest_name = videosalm_manifest_name(item.kind, kind_index)
+                manifest_payload = {"FileName": item.original_path, "Text": item.title}
+                zout.writestr(manifest_name, python_to_relaxed_json(manifest_payload))
+
+                target_member = videosalm_packaged_member(item.original_path, item.packaged_name)
+                if target_member in written_media_members:
+                    continue
+                with zin.open(item.bundled_member) as src:
+                    zout.writestr(target_member, src.read())
+                written_media_members.add(target_member)
                 continue
-            with zin.open(item.bundled_member) as src:
-                zout.writestr(target_member, src.read())
-            written_media_members.add(target_member)
+
+            background_reference: str | None = None
+            if item.background_bundled_member and item.background_kind:
+                cached = written_song_backgrounds.get(item.background_bundled_member)
+                if cached is None:
+                    original_name = Path(item.background_original_path).name or Path(item.background_bundled_member).name
+                    preferred_name = unique_name(used_background_names, original_name)
+                    target_member = videosalm_song_background_member(item.background_kind, preferred_name)
+                    with zin.open(item.background_bundled_member) as src:
+                        zout.writestr(target_member, src.read())
+                    written_media_members.add(target_member)
+                    cached = (target_member, Path(preferred_name).name)
+                    written_song_backgrounds[item.background_bundled_member] = cached
+                background_reference = cached[1]
+
+            zout.writestr(f"Song_{song_counter}.json", python_to_relaxed_json(_videosalm_song_payload(item, background_reference)))
+            zout.writestr(f"SongBook_{song_counter}.json", python_to_relaxed_json(_videosalm_songbook_payload(item.title)))
+            song_counter += 1
 
         zout.writestr("AgendaItemProperties.json", python_to_relaxed_json(agenda_payload))
 

@@ -5,6 +5,8 @@ Projection Software Converter is a Windows-friendly desktop application for movi
 The current release supports:
 - VideoPsalm `.vpagd` -> FreeShow `.project`
 - FreeShow `.project` -> VideoPsalm `.vpagd`
+- EasyWorship `.ewsx` -> FreeShow `.project`
+- FreeShow `.project` -> EasyWorship `.ewsx`
 
 The app exposes those formats through a central conversion registry, a PySide6 desktop interface, a CLI, a Windows installer, and a GitHub Releases based updater.
 
@@ -63,6 +65,11 @@ projection-software-converter-cli check-updates
 - [BUILD_WINDOWS.md](BUILD_WINDOWS.md)
 - [INSTALLER.md](INSTALLER.md)
 - [RELEASE.md](RELEASE.md)
+
+## Sharing With Other Windows Users
+For quick sharing, zip and send `dist\Projection Software Converter\`.
+
+For a cleaner install and update experience, build the Inno Setup installer and send the `.exe` from `dist\installer\`. The installer shows the standard Windows setup wizard and progress bar while installing files.
 
 ## Adding a New Converter
 1. Add the format pair to `src/projection_software_converter/resources/conversions.json`.
