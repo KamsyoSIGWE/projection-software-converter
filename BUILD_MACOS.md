@@ -29,8 +29,6 @@ python -m projection_software_converter
 ## Build the current macOS bundle
 
 ```bash
-python ./scripts/generate_icon.py
-PYTHONPATH="$PWD/src" python ./scripts/write_version_info.py
 python -m PyInstaller ./projection-software-converter.spec --noconfirm
 ```
 
@@ -48,4 +46,5 @@ The executable inside that folder is:
 
 - This is an early cross-platform build path and may still need macOS-specific polish.
 - A native `.app`, `.icns` asset flow, signing, and notarization are not part of the current implementation yet.
+- Windows-specific version metadata and installer generation are intentionally not part of the macOS build path.
 - Use this build path for native macOS testing while the broader macOS release flow is being added.

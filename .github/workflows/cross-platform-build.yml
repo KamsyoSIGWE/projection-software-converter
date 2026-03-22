@@ -1,0 +1,75 @@
+name: cross-platform-build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            artifact_name: projection-software-converter-windows
+            archive_name: ProjectionSoftwareConverter-windows.zip
+          - os: macos-latest
+            platform: macos
+            artifact_name: projection-software-converter-macos
+            archive_name: ProjectionSoftwareConverter-macos.tar.gz
+          - os: ubuntu-latest
+            platform: linux
+            artifact_name: projection-software-converter-linux
+            archive_name: ProjectionSoftwareConverter-linux.tar.gz
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[build]
+
+      - name: Generate Windows build metadata
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python .\scripts\generate_icon.py
+          python .\scripts\write_version_info.py
+
+      - name: Run portable tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest tests.test_updater tests.test_easyworship_tools -v
+
+      - name: Build application bundle
+        run: python -m PyInstaller projection-software-converter.spec --noconfirm
+
+      - name: Archive Windows bundle
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ".\dist\Projection Software Converter\*" -DestinationPath ".\dist\${{ matrix.archive_name }}" -Force
+
+      - name: Archive macOS/Linux bundle
+        if: runner.os != 'Windows'
+        run: |
+          tar -C dist -czf "dist/${{ matrix.archive_name }}" "Projection Software Converter"
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            dist/${{ matrix.archive_name }}
+            dist/Projection Software Converter/**

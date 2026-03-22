@@ -17,7 +17,7 @@ The app exposes those formats through a central conversion registry, a PySide6 d
 - GitHub Releases update checks and release-package handoff
 - PyInstaller packaging in `onedir` mode
 - Inno Setup installer with per-user or all-users install choice
-- GitHub Actions workflow for Windows builds and release artifacts
+- GitHub Actions workflows for Windows releases and cross-platform native build artifacts
 
 ## Quick Start
 ```powershell
@@ -59,6 +59,7 @@ projection-software-converter-cli check-updates
 - `installer/ProjectionSoftwareConverter.iss`: Inno Setup installer script
 - `projection-software-converter.spec`: PyInstaller spec
 - `.github/workflows/windows-release.yml`: Windows CI/release workflow
+- `.github/workflows/cross-platform-build.yml`: native Windows/macOS/Linux build matrix
 - `scripts/`: helper scripts for icon generation and version metadata
 
 ## Documentation
@@ -78,6 +79,8 @@ For a cleaner install and update experience, build the Inno Setup installer and 
 The conversion engine and GUI are being prepared for macOS and Linux support, but the packaged release workflow is still Windows-first today. See [MAC_LINUX_PORT_PROMPT.md](MAC_LINUX_PORT_PROMPT.md) and [MAC_LINUX_PHASE1_REPORT.md](MAC_LINUX_PHASE1_REPORT.md) for the current portability plan and audit.
 
 For native-machine build steps during this transition, see [BUILD_MACOS.md](BUILD_MACOS.md) and [BUILD_LINUX.md](BUILD_LINUX.md).
+
+The repository now includes a native GitHub Actions build matrix for Windows, macOS, and Linux. At this stage it produces native folder-based PyInstaller bundles plus archived CI artifacts; polished macOS and Linux release formats still need follow-up work.
 
 ## Adding a New Converter
 1. Add the format pair to `src/projection_software_converter/resources/conversions.json`.

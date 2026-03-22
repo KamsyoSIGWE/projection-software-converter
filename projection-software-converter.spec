@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import sys
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files
@@ -8,6 +9,7 @@ project_root = Path.cwd()
 src_dir = project_root / "src"
 icon_path = project_root / "assets" / "app.ico"
 version_info_path = project_root / "packaging" / "version_info.txt"
+is_windows = sys.platform.startswith("win")
 
 datas = collect_data_files("projection_software_converter")
 
@@ -36,8 +38,8 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
-    icon=str(icon_path) if icon_path.exists() else None,
-    version=str(version_info_path) if version_info_path.exists() else None,
+    icon=str(icon_path) if is_windows and icon_path.exists() else None,
+    version=str(version_info_path) if is_windows and version_info_path.exists() else None,
 )
 
 coll = COLLECT(
