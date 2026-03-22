@@ -111,18 +111,18 @@ class MainWindow(QMainWindow):
         answer = QMessageBox.question(
             self,
             "Update Available",
-            f"Version {release.version} is available.\n\nRelease notes:\n{notes}\n\nDownload and install now?",
+            f"Version {release.version} is available.\n\nRelease notes:\n{notes}\n\nDownload and open the latest release package now?",
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
 
         try:
-            installer_path = self._updater.download_release_installer(release)
-            self._updater.launch_installer(installer_path)
+            package_path = self._updater.download_release_package(release)
+            self._updater.launch_release_package(package_path)
         except UpdateError as exc:
             QMessageBox.warning(self, "Update Failed", str(exc))
             return
-        LOGGER.info("Launched installer update from %s", installer_path)
+        LOGGER.info("Launched update package from %s", package_path)
         self.close()
 
     def _handle_update_error(self, message: str, silent: bool) -> None:

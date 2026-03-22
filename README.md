@@ -1,6 +1,6 @@
 # Projection Software Converter
 
-Projection Software Converter is a Windows-friendly desktop application for moving presentation packages between supported projection platforms without rewriting the UI each time a new converter is added.
+Projection Software Converter is a desktop application for moving presentation packages between supported projection platforms without rewriting the UI each time a new converter is added.
 
 The current release supports:
 - VideoPsalm `.vpagd` -> FreeShow `.project`
@@ -8,13 +8,13 @@ The current release supports:
 - EasyWorship `.ewsx` -> FreeShow `.project`
 - FreeShow `.project` -> EasyWorship `.ewsx`
 
-The app exposes those formats through a central conversion registry, a PySide6 desktop interface, a CLI, a Windows installer, and a GitHub Releases based updater.
+The app exposes those formats through a central conversion registry, a PySide6 desktop interface, a CLI, a Windows installer, and a GitHub Releases based updater. Windows release artifacts are currently the packaged distribution target, while macOS and Linux portability work is in progress.
 
 ## Features
 - Dynamic supported-conversions registry
 - PySide6 desktop interface with upload/convert workflow
 - Registry-driven validation and converter routing
-- GitHub Releases update checks and installer handoff
+- GitHub Releases update checks and release-package handoff
 - PyInstaller packaging in `onedir` mode
 - Inno Setup installer with per-user or all-users install choice
 - GitHub Actions workflow for Windows builds and release artifacts
@@ -63,13 +63,21 @@ projection-software-converter-cli check-updates
 
 ## Documentation
 - [BUILD_WINDOWS.md](BUILD_WINDOWS.md)
+- [BUILD_MACOS.md](BUILD_MACOS.md)
+- [BUILD_LINUX.md](BUILD_LINUX.md)
 - [INSTALLER.md](INSTALLER.md)
 - [RELEASE.md](RELEASE.md)
+- [GitHub Releases](https://github.com/KamsyoSIGWE/projection-software-converter/releases)
 
 ## Sharing With Other Windows Users
 For quick sharing, zip and send `dist\Projection Software Converter\`.
 
 For a cleaner install and update experience, build the Inno Setup installer and send the `.exe` from `dist\installer\`. The installer shows the standard Windows setup wizard and progress bar while installing files.
+
+## Cross-Platform Status
+The conversion engine and GUI are being prepared for macOS and Linux support, but the packaged release workflow is still Windows-first today. See [MAC_LINUX_PORT_PROMPT.md](MAC_LINUX_PORT_PROMPT.md) and [MAC_LINUX_PHASE1_REPORT.md](MAC_LINUX_PHASE1_REPORT.md) for the current portability plan and audit.
+
+For native-machine build steps during this transition, see [BUILD_MACOS.md](BUILD_MACOS.md) and [BUILD_LINUX.md](BUILD_LINUX.md).
 
 ## Adding a New Converter
 1. Add the format pair to `src/projection_software_converter/resources/conversions.json`.

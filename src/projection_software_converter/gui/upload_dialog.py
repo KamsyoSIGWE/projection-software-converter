@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QThread, Qt, Signal
+from PySide6.QtCore import QStandardPaths, QThread, Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -155,9 +155,15 @@ class UploadDialog(QDialog):
 
     @staticmethod
     def _default_output_folder() -> Path:
-        downloads = Path.home() / "Downloads"
-        if downloads.exists():
-            return downloads
+        downloads = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation)
+        if downloads:
+            download_path = Path(downloads)
+            if download_path.exists():
+                return download_path
+            return download_path
+        home = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
+        if home:
+            return Path(home)
         return Path.home()
 
     def _run_conversion(self) -> None:

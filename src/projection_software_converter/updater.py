@@ -32,7 +32,7 @@ class ReleaseAsset:
 class ReleaseInfo:
     version: str
     notes: str
-    installer: ReleaseAsset
+    package: ReleaseAsset
     checksum: ReleaseAsset | None
     html_url: str
 
@@ -66,23 +66,23 @@ class GitHubReleaseUpdater:
             return None
         return latest
 
-    def download_release_installer(self, release: ReleaseInfo) -> Path:
+    def download_release_package(self, release: ReleaseInfo) -> Path:
         target_dir = Path(tempfile.mkdtemp(prefix="projection-software-converter-update-"))
-        installer_path = target_dir / release.installer.name
-        self._download_file(release.installer.download_url, installer_path)
+        package_path = target_dir / release.package.name
+        self._download_file(release.package.download_url, package_path)
         if release.checksum is not None:
             checksum_path = target_dir / release.checksum.name
             self._download_file(release.checksum.download_url, checksum_path)
-            self._verify_checksum(installer_path, checksum_path)
-        return installer_path
+            self._verify_checksum(package_path, checksum_path)
+        return package_path
 
-    def launch_installer(self, installer_path: Path) -> None:
-        if not installer_path.exists():
-            raise UpdateError(f"Installer file not found: {installer_path}")
+    def launch_release_package(self, package_path: Path) -> None:
+        if not package_path.exists():
+            raise UpdateError(f"Release package not found: {package_path}")
         if os.name == "nt":
-            os.startfile(installer_path)  # type: ignore[attr-defined]
+            os.startfile(package_path)  # type: ignore[attr-defined]
             return
-        subprocess.Popen([str(installer_path)])
+        subprocess.Popen([str(package_path)])
 
     def _fetch_releases(self) -> list[dict]:
         url = f"{self._config.api_base_url}/repos/{self._config.owner}/{self._config.repo}/releases"
@@ -96,7 +96,7 @@ class GitHubReleaseUpdater:
             raise UpdateError("Received invalid JSON from GitHub Releases.") from exc
 
     def _select_latest_release(self, releases: list[dict]) -> ReleaseInfo | None:
-        installer_pattern = re.compile(self._config.installer_asset_pattern)
+        release_pattern = re.compile(self._config.release_asset_pattern)
         checksum_pattern = re.compile(self._config.checksum_asset_pattern)
         candidates: list[ReleaseInfo] = []
         for release in releases:
@@ -105,23 +105,23 @@ class GitHubReleaseUpdater:
             if release.get("prerelease") and not self._config.include_prereleases:
                 continue
 
-            installer_asset: ReleaseAsset | None = None
+            package_asset: ReleaseAsset | None = None
             checksum_asset: ReleaseAsset | None = None
             for asset in release.get("assets", []):
                 name = str(asset.get("name", ""))
                 download_url = str(asset.get("browser_download_url", ""))
-                if installer_pattern.fullmatch(name):
-                    installer_asset = ReleaseAsset(name=name, download_url=download_url)
+                if release_pattern.fullmatch(name):
+                    package_asset = ReleaseAsset(name=name, download_url=download_url)
                 elif checksum_pattern.fullmatch(name):
                     checksum_asset = ReleaseAsset(name=name, download_url=download_url)
-            if installer_asset is None:
+            if package_asset is None:
                 continue
 
             candidates.append(
                 ReleaseInfo(
                     version=str(release.get("tag_name") or release.get("name") or ""),
                     notes=str(release.get("body") or "").strip(),
-                    installer=installer_asset,
+                    package=package_asset,
                     checksum=checksum_asset,
                     html_url=str(release.get("html_url") or ""),
                 )
@@ -141,9 +141,9 @@ class GitHubReleaseUpdater:
             raise UpdateError(f"Download failed: {exc}") from exc
 
     @staticmethod
-    def _verify_checksum(installer_path: Path, checksum_path: Path) -> None:
+    def _verify_checksum(package_path: Path, checksum_path: Path) -> None:
         expected_line = checksum_path.read_text(encoding="utf-8").strip().splitlines()[0]
         expected = expected_line.split()[0].lower()
-        digest = hashlib.sha256(installer_path.read_bytes()).hexdigest().lower()
+        digest = hashlib.sha256(package_path.read_bytes()).hexdigest().lower()
         if expected != digest:
-            raise UpdateError("Downloaded installer checksum verification failed.")
+            raise UpdateError("Downloaded release package checksum verification failed.")

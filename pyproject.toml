@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "projection-software-converter"
-description = "Windows desktop tool for converting projection software packages between supported formats"
+description = "Desktop tool for converting projection software packages between supported formats"
 readme = "README.md"
 requires-python = ">=3.10"
 dynamic = ["version"]
@@ -35,7 +35,11 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-projection_software_converter = ["resources/*.json"]
+projection_software_converter = [
+  "resources/*.json",
+  "resources/easyworship_templates/*.json",
+  "resources/easyworship_templates/*.db",
+]
 
 [tool.setuptools.dynamic]
 version = {attr = "projection_software_converter.version.__version__"}
