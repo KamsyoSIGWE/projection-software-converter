@@ -2,7 +2,7 @@
 
 ## Current status
 
-macOS support is in progress. The current repository can be built on a native macOS machine for local testing and folder-based distribution, but it does not yet produce a polished notarized `.app` or `.dmg` release flow.
+macOS support is in progress. The current repository can now build a native `.app` bundle on a macOS machine and package it as a versioned zip for distribution, but signing, notarization, and `.dmg` creation are not part of the current flow yet.
 
 Run these steps on macOS, not on Windows.
 
@@ -34,17 +34,22 @@ python -m PyInstaller ./projection-software-converter.spec --noconfirm
 
 ## Output
 
-The current PyInstaller spec produces a folder-based build under:
+The current PyInstaller spec produces:
 
-`dist/Projection Software Converter/`
+- `dist/Projection Software Converter.app`
+- `dist/Projection Software Converter/`
 
-The executable inside that folder is:
+The executable inside the app bundle is:
 
-`dist/Projection Software Converter/ProjectionSoftwareConverter`
+`dist/Projection Software Converter.app/Contents/MacOS/ProjectionSoftwareConverter`
+
+For release-style packaging, zip the app bundle as:
+
+`ProjectionSoftwareConverter-<version>-macOS.zip`
 
 ## Notes
 
 - This is an early cross-platform build path and may still need macOS-specific polish.
-- A native `.app`, `.icns` asset flow, signing, and notarization are not part of the current implementation yet.
+- A custom `.icns` asset flow, signing, notarization, and `.dmg` packaging are not part of the current implementation yet.
 - Windows-specific version metadata and installer generation are intentionally not part of the macOS build path.
 - Use this build path for native macOS testing while the broader macOS release flow is being added.

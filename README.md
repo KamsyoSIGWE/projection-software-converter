@@ -80,7 +80,13 @@ The conversion engine and GUI are being prepared for macOS and Linux support, bu
 
 For native-machine build steps during this transition, see [BUILD_MACOS.md](BUILD_MACOS.md) and [BUILD_LINUX.md](BUILD_LINUX.md).
 
-The repository now includes a native GitHub Actions build matrix for Windows, macOS, and Linux. At this stage it produces native folder-based PyInstaller bundles plus archived CI artifacts; polished macOS and Linux release formats still need follow-up work.
+The repository now includes a native GitHub Actions build matrix for Windows, macOS, and Linux. Windows release publishing remains installer-first, while the cross-platform workflow now produces consistent native archive names for macOS and Linux release assets.
+
+Current release artifact targets are:
+
+- Windows: `ProjectionSoftwareConverter-<version>-Setup.exe`
+- macOS: `ProjectionSoftwareConverter-<version>-macOS.zip`
+- Linux: `ProjectionSoftwareConverter-<version>-linux.tar.gz`
 
 ## Adding a New Converter
 1. Add the format pair to `src/projection_software_converter/resources/conversions.json`.

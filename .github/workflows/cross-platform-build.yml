@@ -5,7 +5,14 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
   pull_request:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -16,16 +23,16 @@ jobs:
         include:
           - os: windows-latest
             platform: windows
-            artifact_name: projection-software-converter-windows
-            archive_name: ProjectionSoftwareConverter-windows.zip
+            archive_label: windows
+            archive_extension: zip
           - os: macos-latest
             platform: macos
-            artifact_name: projection-software-converter-macos
-            archive_name: ProjectionSoftwareConverter-macos.tar.gz
+            archive_label: macOS
+            archive_extension: zip
           - os: ubuntu-latest
             platform: linux
-            artifact_name: projection-software-converter-linux
-            archive_name: ProjectionSoftwareConverter-linux.tar.gz
+            archive_label: linux
+            archive_extension: tar.gz
 
     steps:
       - uses: actions/checkout@v5
@@ -34,6 +41,11 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: echo "value=$(python -c 'from pathlib import Path; import re; text=Path(\"src/projection_software_converter/version.py\").read_text(encoding=\"utf-8\"); print(re.search(r\"__version__\\s*=\\s*\\\"([^\\\"]+)\\\"\", text).group(1))')" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: |
@@ -59,17 +71,39 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path ".\dist\Projection Software Converter\*" -DestinationPath ".\dist\${{ matrix.archive_name }}" -Force
+          $archive = ".\dist\ProjectionSoftwareConverter-${{ steps.version.outputs.value }}-${{ matrix.archive_label }}.${{ matrix.archive_extension }}"
+          Compress-Archive -Path ".\dist\Projection Software Converter\*" -DestinationPath $archive -Force
 
-      - name: Archive macOS/Linux bundle
-        if: runner.os != 'Windows'
+      - name: Archive macOS app bundle
+        if: runner.os == 'macOS'
         run: |
-          tar -C dist -czf "dist/${{ matrix.archive_name }}" "Projection Software Converter"
+          ditto -c -k --sequesterRsrc --keepParent "dist/Projection Software Converter.app" "dist/ProjectionSoftwareConverter-${{ steps.version.outputs.value }}-${{ matrix.archive_label }}.${{ matrix.archive_extension }}"
+
+      - name: Archive Linux bundle
+        if: runner.os == 'Linux'
+        run: |
+          tar -C dist -czf "dist/ProjectionSoftwareConverter-${{ steps.version.outputs.value }}-${{ matrix.archive_label }}.${{ matrix.archive_extension }}" "Projection Software Converter"
+
+      - name: Generate archive checksum
+        shell: bash
+        run: |
+          archive_path="dist/ProjectionSoftwareConverter-${{ steps.version.outputs.value }}-${{ matrix.archive_label }}.${{ matrix.archive_extension }}"
+          sha256sum "$archive_path" > "$archive_path.sha256"
 
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.artifact_name }}
+          name: ProjectionSoftwareConverter-${{ steps.version.outputs.value }}-${{ matrix.archive_label }}
           path: |
-            dist/${{ matrix.archive_name }}
+            dist/ProjectionSoftwareConverter-${{ steps.version.outputs.value }}-${{ matrix.archive_label }}.${{ matrix.archive_extension }}
+            dist/ProjectionSoftwareConverter-${{ steps.version.outputs.value }}-${{ matrix.archive_label }}.${{ matrix.archive_extension }}.sha256
             dist/Projection Software Converter/**
+            dist/Projection Software Converter.app/**
+
+      - name: Attach native release assets
+        if: github.event_name == 'release' && runner.os != 'Windows'
+        uses: softprops/action-gh-release@v2.5.0
+        with:
+          files: |
+            dist/ProjectionSoftwareConverter-${{ steps.version.outputs.value }}-${{ matrix.archive_label }}.${{ matrix.archive_extension }}
+            dist/ProjectionSoftwareConverter-${{ steps.version.outputs.value }}-${{ matrix.archive_label }}.${{ matrix.archive_extension }}.sha256

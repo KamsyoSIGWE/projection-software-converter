@@ -51,3 +51,11 @@ coll = COLLECT(
     upx_exclude=[],
     name="Projection Software Converter",
 )
+
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name="Projection Software Converter.app",
+        icon=None,
+        bundle_identifier="com.projectionsoftwareconverter.app",
+    )
