@@ -12,8 +12,29 @@ APP_NAME = "Projection Software Converter"
 class GitHubUpdateConfig:
     owner: str
     repo: str
-    release_asset_pattern: str = r"ProjectionSoftwareConverter-(?P<version>.+)-Setup\.exe"
-    checksum_asset_pattern: str = r"ProjectionSoftwareConverter-(?P<version>.+)-Setup\.exe\.sha256"
+    windows_release_asset_patterns: tuple[str, ...] = (r"ProjectionSoftwareConverter-(?P<version>.+)-Setup\.exe",)
+    windows_checksum_asset_patterns: tuple[str, ...] = (r"ProjectionSoftwareConverter-(?P<version>.+)-Setup\.exe\.sha256",)
+    macos_release_asset_patterns: tuple[str, ...] = (
+        r"ProjectionSoftwareConverter-(?P<version>.+)-macOS\.(?:zip|dmg)",
+        r"ProjectionSoftwareConverter-(?P<version>.+)-macos\.(?:zip|dmg)",
+        r"ProjectionSoftwareConverter-(?P<version>.+)-darwin\.(?:zip|dmg)",
+    )
+    macos_checksum_asset_patterns: tuple[str, ...] = (
+        r"ProjectionSoftwareConverter-(?P<version>.+)-macOS\.(?:zip|dmg)\.sha256",
+        r"ProjectionSoftwareConverter-(?P<version>.+)-macos\.(?:zip|dmg)\.sha256",
+        r"ProjectionSoftwareConverter-(?P<version>.+)-darwin\.(?:zip|dmg)\.sha256",
+    )
+    linux_release_asset_patterns: tuple[str, ...] = (
+        r"ProjectionSoftwareConverter-(?P<version>.+)-linux\.AppImage",
+        r"ProjectionSoftwareConverter-(?P<version>.+)-linux\.tar\.gz",
+        r"ProjectionSoftwareConverter-(?P<version>.+)-Linux\.AppImage",
+        r"ProjectionSoftwareConverter-(?P<version>.+)-Linux\.tar\.gz",
+    )
+    linux_checksum_asset_patterns: tuple[str, ...] = (
+        r"ProjectionSoftwareConverter-(?P<version>.+)-linux\.(?:AppImage|tar\.gz)\.sha256",
+        r"ProjectionSoftwareConverter-(?P<version>.+)-Linux\.(?:AppImage|tar\.gz)\.sha256",
+    )
+    platform_override: str | None = None
     api_base_url: str = "https://api.github.com"
     include_prereleases: bool = False
 
@@ -33,15 +54,8 @@ def _github_update_config_from_env() -> GitHubUpdateConfig:
     return GitHubUpdateConfig(
         owner=os.getenv("PSC_GITHUB_OWNER", "REPLACE_WITH_GITHUB_OWNER"),
         repo=os.getenv("PSC_GITHUB_REPOSITORY", "REPLACE_WITH_GITHUB_REPOSITORY"),
-        release_asset_pattern=os.getenv(
-            "PSC_RELEASE_ASSET_PATTERN",
-            GitHubUpdateConfig.release_asset_pattern,
-        ),
-        checksum_asset_pattern=os.getenv(
-            "PSC_RELEASE_CHECKSUM_ASSET_PATTERN",
-            GitHubUpdateConfig.checksum_asset_pattern,
-        ),
-    )
+        platform_override=os.getenv("PSC_RELEASE_PLATFORM") or None,
+        )
 
 
 DEFAULT_CONFIG = AppConfig(github_updates=_github_update_config_from_env())

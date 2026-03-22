@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import urllib.error
 import urllib.request
@@ -96,8 +97,7 @@ class GitHubReleaseUpdater:
             raise UpdateError("Received invalid JSON from GitHub Releases.") from exc
 
     def _select_latest_release(self, releases: list[dict]) -> ReleaseInfo | None:
-        release_pattern = re.compile(self._config.release_asset_pattern)
-        checksum_pattern = re.compile(self._config.checksum_asset_pattern)
+        release_patterns, checksum_patterns = self._compiled_asset_patterns()
         candidates: list[ReleaseInfo] = []
         for release in releases:
             if release.get("draft"):
@@ -110,9 +110,9 @@ class GitHubReleaseUpdater:
             for asset in release.get("assets", []):
                 name = str(asset.get("name", ""))
                 download_url = str(asset.get("browser_download_url", ""))
-                if release_pattern.fullmatch(name):
+                if self._matches_any_pattern(name, release_patterns):
                     package_asset = ReleaseAsset(name=name, download_url=download_url)
-                elif checksum_pattern.fullmatch(name):
+                elif self._matches_any_pattern(name, checksum_patterns):
                     checksum_asset = ReleaseAsset(name=name, download_url=download_url)
             if package_asset is None:
                 continue
@@ -147,3 +147,30 @@ class GitHubReleaseUpdater:
         digest = hashlib.sha256(package_path.read_bytes()).hexdigest().lower()
         if expected != digest:
             raise UpdateError("Downloaded release package checksum verification failed.")
+
+    def _compiled_asset_patterns(self) -> tuple[list[re.Pattern[str]], list[re.Pattern[str]]]:
+        platform_name = self._current_platform_name()
+        if platform_name == "macos":
+            release_patterns = self._config.macos_release_asset_patterns
+            checksum_patterns = self._config.macos_checksum_asset_patterns
+        elif platform_name == "linux":
+            release_patterns = self._config.linux_release_asset_patterns
+            checksum_patterns = self._config.linux_checksum_asset_patterns
+        else:
+            release_patterns = self._config.windows_release_asset_patterns
+            checksum_patterns = self._config.windows_checksum_asset_patterns
+        return [re.compile(pattern) for pattern in release_patterns], [re.compile(pattern) for pattern in checksum_patterns]
+
+    def _current_platform_name(self) -> str:
+        override = (self._config.platform_override or "").strip().lower()
+        if override in {"windows", "macos", "linux"}:
+            return override
+        if sys.platform == "darwin":
+            return "macos"
+        if sys.platform.startswith("linux"):
+            return "linux"
+        return "windows"
+
+    @staticmethod
+    def _matches_any_pattern(name: str, patterns: list[re.Pattern[str]]) -> bool:
+        return any(pattern.fullmatch(name) for pattern in patterns)
